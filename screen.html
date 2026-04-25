@@ -3,83 +3,77 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>班级大屏通知列表</title>
+    <title>班级大屏通知</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css">
-    <script>
-        tailwind.config={
-            theme:{extend:{colors:{primary:'#1E88E5',urgent:'#e53e3e',important:'#f97316'}}}
-        }
-    </script>
+    <script src="https://cdn.jsdelivr.net/npm/socket.io-client@4.8.1/dist/socket.io.min.js"></script>
     <style>
-        body{overflow:hidden;height:100vh;}
-        ::-webkit-scrollbar {width: 6px;}
-        ::-webkit-scrollbar-thumb {background: #ccc;border-radius:3px;}
+        body{overflow:hidden;height:100vh}
+        ::-webkit-scrollbar{width:6px}
     </style>
 </head>
-<body class="flex flex-col w-full h-full bg-slate-100">
-    <header class="bg-primary text-white px-8 py-4 flex justify-between items-center shadow">
-        <div class="text-2xl font-bold"><i class="fa fa-bullhorn mr-2"></i>班级通知公告</div>
-        <div class="text-xl" id="nowTime"></div>
-    </header>
+<body class="flex flex-col h-screen bg-slate-100">
+<header class="bg-blue-600 text-white px-6 py-4 flex justify-between items-center">
+    <div class="text-2xl font-bold">📢 班级通知公告</div>
+    <div id="time" class="text-xl"></div>
+</header>
 
-    <main class="flex-1 p-6 overflow-y-auto">
-        <div id="listBox" class="w-full max-w-6xl mx-auto space-y-4"></div>
-    </main>
+<main class="flex-1 p-6 overflow-y-auto">
+    <div id="box" class="max-w-6xl mx-auto space-y-4"></div>
+</main>
 
-    <footer class="bg-white px-8 py-3 shadow-inner">
-        <div class="flex justify-between items-center">
-            <span class="text-green-600">实时同步中</span>
-            <span class="text-gray-500 text-sm">© 2025 北二外成都附中 版权所有</span>
-        </div>
-    </footer>
+<footer class="bg-white p-3 flex justify-between items-center">
+    <span class="text-green-600">✅ 实时同步中</span>
+    <span class="text-gray-500 text-sm">© 2025 北二外成都附中 版权所有</span>
+</footer>
 
 <script>
-const STORAGE_KEY = 'class_msg_data';
+const socket = io('wss://echo.websocket.events');
+let list = [];
 
-// 读取消息
-function getMsg() {
-    const data = localStorage.getItem(STORAGE_KEY);
-    return data ? JSON.parse(data) : [];
-}
+// 实时接收消息
+socket.on('msg', (data) => {
+    list.unshift(data);
+    render();
+});
+
+// 清空同步
+socket.on('clear', () => {
+    list = [];
+    render();
+});
 
 // 渲染列表
 function render() {
-    const msgArr = getMsg();
-    const box = document.getElementById("listBox");
-
-    if (msgArr.length === 0) {
-        box.innerHTML = `<div class="bg-white rounded-lg p-10 text-center text-gray-400 text-2xl shadow">暂无通知，等待老师发布</div>`;
+    if (list.length === 0) {
+        document.getElementById('box').innerHTML = `<div class="text-center text-gray-400 text-2xl p-10 bg-white rounded">暂无通知</div>`;
         return;
     }
 
-    let html = "";
-    msgArr.forEach(item => {
-        let headColor = "bg-primary";
-        if (item.type === "urgent") headColor = "bg-urgent";
-        if (item.type === "important") headColor = "bg-important";
-        
-        const pinBadge = item.pinned ? '<span class="bg-yellow-400 text-black text-sm px-3 rounded ml-3">置顶</span>' : '';
+    let html = '';
+    list.forEach(item => {
+        let color = 'bg-blue-600';
+        if (item.type === 'urgent') color = 'bg-red-600';
+        if (item.type === 'important') color = 'bg-orange-500';
+        const pin = item.pinned ? '<span class="bg-yellow-400 text-black px-2 rounded text-sm ml-2">置顶</span>' : '';
 
         html += `
         <div class="bg-white rounded-lg shadow-lg overflow-hidden">
-            <div class="${headColor} text-white px-6 py-3 flex justify-between items-center">
-                <div class="text-xl font-bold">${item.title} ${pinBadge}</div>
+            <div class="${color} text-white p-4 flex justify-between">
+                <div class="text-xl font-bold">${item.title} ${pin}</div>
                 <div class="text-sm">${item.time}</div>
             </div>
-            <div class="px-6 py-5 text-lg whitespace-pre-wrap">${item.content}</div>
+            <div class="p-6 text-lg">${item.content}</div>
         </div>`;
     });
-    box.innerHTML = html;
+    document.getElementById('box').innerHTML = html;
 }
 
-// 实时时间
+// 时间
 setInterval(() => {
-    document.getElementById("nowTime").innerText = new Date().toLocaleString('zh-CN');
+    document.getElementById('time').innerText = new Date().toLocaleString('zh-CN');
 }, 1000);
 
-// 2秒同步一次
-setInterval(render, 2000);
 render();
 </script>
 </body>
