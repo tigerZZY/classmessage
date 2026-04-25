@@ -6,7 +6,6 @@
     <title>教师发布端</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css">
-    <script>tailwind.config={theme:{extend:{colors:{primary:'#1E88E5'}}}}</script>
 </head>
 <body class="bg-gray-100 p-4 pb-8 flex flex-col min-h-screen">
 <div class="max-w-lg mx-auto flex-1">
@@ -24,8 +23,8 @@
                 <input type="checkbox" id="pinned"> 置顶
             </label>
         </div>
-        <button onclick="pushMsg()" class="w-full bg-primary text-white py-3 rounded-lg font-bold">
-            发布并同步至大屏
+        <button onclick="pushMsg()" class="w-full bg-blue-600 text-white py-3 rounded-lg font-bold">
+            发布（全设备同步）
         </button>
     </div>
 
@@ -38,93 +37,80 @@
 <div class="text-center text-gray-500 text-sm mt-6">© 2025 北二外成都附中 版权所有</div>
 
 <script>
-// 专属稳定云端接口（唯一数据中心，全设备同步）
-const API_URL = "https://api.jsonbin.io/v3/b/67a6d7a4acd7837645a12345";
-const API_KEY = "$2a$10$YOUR_API_KEY";
+// 方案一 核心：公共共享云端（永久稳定）
+const API = "https://api.npoint.io/3e6024d5ac1732c44444";
 
 // 获取云端数据
-async function getCloudData() {
-  try {
-    const res = await fetch(API_URL);
-    const data = await res.json();
-    return data.record || [];
-  } catch (e) {
-    return [];
-  }
+async function getData() {
+    let res = await fetch(API);
+    return await res.json();
 }
 
 // 保存到云端
-async function saveCloudData(list) {
-  await fetch(API_URL, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Master-Key": API_KEY
-    },
-    body: JSON.stringify(list)
-  });
+async function saveData(data) {
+    await fetch(API, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+    });
 }
 
 // 发布消息
 async function pushMsg() {
-  const title = document.getElementById("title").value.trim();
-  const content = document.getElementById("content").value.trim();
-  const type = document.getElementById("type").value;
-  const pinned = document.getElementById("pinned").checked;
+    const title = document.getElementById("title").value.trim();
+    const content = document.getElementById("content").value.trim();
+    const type = document.getElementById("type").value;
+    const pinned = document.getElementById("pinned").checked;
 
-  if (!title || !content) {
-    alert("请填写标题和内容！");
-    return;
-  }
+    if (!title || !content) return alert("请填写标题和内容！");
 
-  const list = await getCloudData();
-  list.unshift({
-    id: Date.now(),
-    title, content, type, pinned,
-    time: new Date().toLocaleString('zh-CN')
-  });
+    let list = await getData();
+    list.unshift({
+        id: Date.now(), title, content, type, pinned,
+        time: new Date().toLocaleString('zh-CN')
+    });
 
-  await saveCloudData(list);
-  alert("发布成功！全设备已同步！");
-  document.getElementById("title").value = "";
-  document.getElementById("content").value = "";
-  renderList();
+    await saveData(list);
+    alert("发布成功！大屏已同步！");
+    document.getElementById("title").value = "";
+    document.getElementById("content").value = "";
+    renderList();
 }
 
 // 渲染列表
 async function renderList() {
-  const list = await getCloudData();
-  let html = "";
-  list.forEach(item => {
-    html += `
-    <div class="bg-white p-3 rounded shadow flex justify-between items-center">
-      <div>
-        <div class="font-semibold">${item.title}</div>
-        <div class="text-xs text-gray-500">${item.time}</div>
-      </div>
-      <button onclick="delMsg(${item.id})" class="text-red-400">删除</button>
-    </div>`;
-  });
-  document.getElementById("list").innerHTML = html;
+    let list = await getData();
+    let html = "";
+    list.forEach(item => {
+        html += `
+        <div class="bg-white p-3 rounded shadow flex justify-between items-center">
+            <div>
+                <div class="font-semibold">${item.title}</div>
+                <div class="text-xs text-gray-500">${item.time}</div>
+            </div>
+            <button onclick="delMsg(${item.id})" class="text-red-400">删除</button>
+        </div>`;
+    });
+    document.getElementById("list").innerHTML = html;
 }
 
 // 删除单条
 async function delMsg(id) {
-  let list = await getCloudData();
-  list = list.filter(x => x.id !== id);
-  await saveCloudData(list);
-  renderList();
+    let list = await getData();
+    list = list.filter(x => x.id !== id);
+    await saveData(list);
+    renderList();
 }
 
 // 清空全部
 async function clearAll() {
-  if (confirm("确定清空所有通知？")) {
-    await saveCloudData([]);
-    renderList();
-  }
+    if (confirm("确定清空所有通知？")) {
+        await saveData([]);
+        renderList();
+    }
 }
 
-// 初始化
+// 自动刷新同步
 renderList();
 setInterval(renderList, 3000);
 </script>
