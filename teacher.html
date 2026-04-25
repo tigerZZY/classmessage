@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>教师发布端-实时同步</title>
+    <title>教师发布端-云端同步</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css">
     <script>tailwind.config={theme:{extend:{colors:{primary:'#1E88E5'}}}}</script>
 </head>
-<body class="bg-gray-100 p-4 pb-24">
-<div class="max-w-lg mx-auto">
-    <h2 class="text-xl font-bold mb-4">📱 教师发布通知（实时同步大屏）</h2>
+<body class="bg-gray-100 p-4 pb-8 flex flex-col min-h-screen">
+<div class="max-w-lg mx-auto flex-1">
+    <h2 class="text-xl font-bold mb-4">📱 教师发布通知（全局云端同步）</h2>
     <div class="bg-white p-4 rounded-lg shadow">
         <input type="text" id="title" placeholder="通知标题" class="w-full border p-3 rounded mb-3">
         <textarea id="content" rows="5" placeholder="输入通知内容..." class="w-full border p-3 rounded mb-3"></textarea>
@@ -25,82 +25,90 @@
             </label>
         </div>
         <button onclick="pushMsg()" class="w-full bg-primary text-white py-3 rounded-lg font-bold">
-            立即发布 实时同步
+            发布并同步至全班大屏
         </button>
     </div>
 
     <div class="mt-4 flex justify-between items-center">
-        <h3 class="font-bold">历史通知</h3>
-        <button onclick="clearAll()" class="text-red-500 text-sm">一键清空全部</button>
+        <h3 class="font-bold">全部通知（云端）</h3>
+        <button onclick="clearAll()" class="text-red-500 text-sm">一键清空</button>
     </div>
     <div id="list" class="mt-2 space-y-2"></div>
 </div>
 
-<script>
-// 使用公共本地存储跨设备同步方案 + 定时拉取
-const KEY = "classNoticeData";
+<div class="text-center text-gray-500 text-sm mt-6">
+    © 2025 北二外成都附中 版权所有
+</div>
 
-// 发布消息
-function pushMsg(){
+<script>
+const API = "https://jsonblob.com/api/jsonBlob/1165509423199248384";
+
+async function getCloudData(){
+    let res = await fetch(API);
+    return await res.json();
+}
+
+async function saveCloudData(list){
+    await fetch(API,{
+        method:"PUT",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify(list)
+    });
+}
+
+async function pushMsg(){
     const title = document.getElementById("title").value.trim();
     const content = document.getElementById("content").value.trim();
     const type = document.getElementById("type").value;
     const pinned = document.getElementById("pinned").checked;
-    if(!title || !content) return alert("请填写完整内容");
+    if(!title || !content) return alert("请填写标题和内容");
 
-    const now = new Date();
-    const msg = {
+    let list = await getCloudData();
+    let msg = {
         id: Date.now(),
         title,content,type,pinned,
-        time: now.toLocaleString('zh-CN')
+        time: new Date().toLocaleString('zh-CN')
     };
+    list.unshift(msg);
+    await saveCloudData(list);
 
-    let all = JSON.parse(localStorage.getItem(KEY) || "[]");
-    all.unshift(msg);
-    localStorage.setItem(KEY, JSON.stringify(all));
-
-    alert("发布成功！大屏已实时更新");
+    alert("发布成功！所有浏览器/大屏已同步更新");
     document.getElementById("title").value = "";
     document.getElementById("content").value = "";
     renderList();
 }
 
-// 渲染列表
-function renderList(){
-    let all = JSON.parse(localStorage.getItem(KEY) || "[]");
+async function renderList(){
+    let list = await getCloudData();
     let html = "";
-    all.forEach(item=>{
+    list.forEach(item=>{
         html += `
-        <div class="bg-white p-3 rounded shadow flex justify-between">
+        <div class="bg-white p-3 rounded shadow flex justify-between items-center">
             <div>
                 <div class="font-semibold">${item.title}</div>
                 <div class="text-xs text-gray-500">${item.time}</div>
             </div>
-            <button onclick="delMsg(${item.id})" class="text-red-400">删除</button>
+            <button onclick="delMsg(${item.id})" class="text-red-400 px-2">删除</button>
         </div>`;
     })
     document.getElementById("list").innerHTML = html;
 }
 
-// 删除单条
-function delMsg(id){
-    let all = JSON.parse(localStorage.getItem(KEY) || "[]");
-    all = all.filter(x=>x.id!==id);
-    localStorage.setItem(KEY, JSON.stringify(all));
+async function delMsg(id){
+    let list = await getCloudData();
+    list = list.filter(x=>x.id !== id);
+    await saveCloudData(list);
     renderList();
 }
 
-// 清空全部
-function clearAll(){
-    if(confirm("确定清空所有通知？大屏会同步清空")){
-        localStorage.removeItem(KEY);
-        renderList();
-    }
+async function clearAll(){
+    if(!confirm("确定清空所有云端通知？"))return;
+    await saveCloudData([]);
+    renderList();
 }
 
 renderList();
-// 同域自动同步刷新
-setInterval(renderList, 2000);
+setInterval(renderList,3000);
 </script>
 </body>
 </html>
