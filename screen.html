@@ -3,107 +3,100 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>班级大屏实时通知</title>
+    <title>班级大屏通知列表</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css">
+    <script>
+        tailwind.config={
+            theme:{
+                extend:{
+                    colors:{
+                        primary:'#1E88E5',
+                        urgent:'#e53e3e',
+                        important:'#f97316'
+                    }
+                }
+            }
+        }
+    </script>
     <style>
         body{overflow:hidden;height:100vh;}
-        .progress{animation:slide 15s linear forwards;}
-        @keyframes slide{from{width:100%}to{width:0%;}}
+        ::-webkit-scrollbar {width: 6px;}
+        ::-webkit-scrollbar-thumb {background: #ccc;border-radius:3px;}
     </style>
-    <script>tailwind.config={theme:{extend:{colors:{primary:'#1E88E5',urgent:'#e53e3e',important:'#f97316'}}}}</script>
 </head>
 <body class="flex flex-col w-full h-full bg-slate-100">
     <!-- 顶部栏 -->
-    <header class="bg-primary text-white px-6 py-3 flex justify-between items-center">
-        <div class="text-xl font-bold">📢 班级课间通知大屏</div>
-        <div id="nowTime"></div>
+    <header class="bg-primary text-white px-8 py-4 flex justify-between items-center shadow">
+        <div class="text-2xl font-bold"><i class="fa fa-bullhorn mr-2"></i>班级通知公告</div>
+        <div class="text-xl" id="nowTime"></div>
     </header>
 
-    <!-- 消息主体 -->
-    <main class="flex-1 flex items-center justify-center p-6">
-        <div id="showBox" class="w-full max-w-5xl"></div>
+    <!-- 消息列表区域 全部展示 -->
+    <main class="flex-1 p-6 overflow-y-auto">
+        <div id="listBox" class="w-full max-w-6xl mx-auto space-y-4"></div>
     </main>
 
-    <!-- 底部进度 -->
-    <footer class="bg-white px-6 py-3">
-        <div class="flex items-center justify-between">
-            <span class="text-gray-600">实时监听中...</span>
-            <div class="w-64 h-2 bg-gray-200 rounded overflow-hidden">
-                <div id="bar" class="h-full bg-primary progress"></div>
-            </div>
-            <span id="num">0/0</span>
+    <!-- 底部状态栏 + 版权 -->
+    <footer class="bg-white px-8 py-3 shadow-inner">
+        <div class="flex justify-between items-center">
+            <span class="text-green-600"><i class="fa fa-cloud mr-1"></i> 云端实时同步 | 最新通知自动刷新</span>
+            <span class="text-gray-500 text-sm">© 2025 北二外成都附中 版权所有</span>
         </div>
     </footer>
 
 <script>
-const KEY = "classNoticeData";
-let msgArr = [];
-let curr = 0;
+const API = "https://jsonblob.com/api/jsonBlob/1165509423199248384";
 
-// 读取消息
-function getMsg(){
-    const data = localStorage.getItem(KEY);
-    return data ? JSON.parse(data) : [];
+async function getCloudData(){
+    let res = await fetch(API);
+    return await res.json();
 }
 
-// 渲染当前消息
-function render(){
-    msgArr = getMsg();
+async function renderList(){
+    let msgArr = await getCloudData();
+    const box = document.getElementById("listBox");
+
     if(msgArr.length === 0){
-        document.getElementById("showBox").innerHTML = `
-        <div class="text-center text-gray-400 text-3xl">
-            暂无通知，等待老师发布...
+        box.innerHTML = `
+        <div class="bg-white rounded-lg p-10 text-center text-gray-400 text-2xl shadow">
+            暂无班级通知，等待老师发布
         </div>`;
-        document.getElementById("num").innerText = "0/0";
         return;
     }
 
-    const item = msgArr[curr];
-    document.getElementById("num").innerText = `${curr+1}/${msgArr.length}`;
+    let html = "";
+    msgArr.forEach(item=>{
+        let headColor = "bg-primary";
+        if(item.type === "urgent") headColor = "bg-urgent";
+        if(item.type === "important") headColor = "bg-important";
 
-    let color = "bg-primary";
-    if(item.type === "urgent") color = "bg-urgent";
-    if(item.type === "important") color = "bg-important";
-    let pinText = item.pinned ? '<span class="bg-yellow-400 text-black px-2 rounded ml-2 text-sm">置顶</span>' : "";
+        let pinBadge = item.pinned 
+            ? '<span class="bg-yellow-400 text-black text-sm px-3 py-1 rounded ml-3">置顶</span>' 
+            : '';
 
-    document.getElementById("showBox").innerHTML = `
-    <div class="rounded-xl shadow-lg overflow-hidden">
-        <div class="${color} text-white p-5 text-2xl font-bold">
-            ${item.title} ${pinText}
-            <div class="text-sm font-normal opacity-80 mt-1">${item.time}</div>
-        </div>
-        <div class="bg-white p-8 text-xl whitespace-pre-wrap leading-loose">
-            ${item.content}
-        </div>
-    </div>`;
+        html += `
+        <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+            <div class="${headColor} text-white px-6 py-3 flex justify-between items-center">
+                <div class="text-xl font-bold">${item.title} ${pinBadge}</div>
+                <div class="text-sm opacity-90">${item.time}</div>
+            </div>
+            <div class="px-6 py-5 text-lg whitespace-pre-wrap leading-relaxed text-gray-800">
+                ${item.content}
+            </div>
+        </div>`;
+    });
 
-    // 重置进度条
-    const bar = document.getElementById("bar");
-    bar.style.animation = "none";
-    bar.offsetWidth;
-    bar.style.animation = "slide 15s linear forwards";
+    box.innerHTML = html;
 }
 
-// 自动轮播
-function autoNext(){
-    curr = (curr + 1) % msgArr.length;
-    render();
-}
-
-// 每秒更新时间
 setInterval(()=>{
     const t = new Date().toLocaleString('zh-CN');
     document.getElementById("nowTime").innerText = t;
 },1000);
 
-// 实时监听：2秒拉取一次新消息（完美同步）
-setInterval(render, 2000);
-// 15秒自动下一条
-setInterval(autoNext, 15000);
-
-// 初始化
-render();
+setInterval(renderList, 3000);
+renderList();
 </script>
 </body>
 </html>
