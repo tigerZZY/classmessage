@@ -8,15 +8,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css">
     <script>
         tailwind.config={
-            theme:{
-                extend:{
-                    colors:{
-                        primary:'#1E88E5',
-                        urgent:'#e53e3e',
-                        important:'#f97316'
-                    }
-                }
-            }
+            theme:{extend:{colors:{primary:'#1E88E5',urgent:'#e53e3e',important:'#f97316'}}}
         }
     </script>
     <style>
@@ -26,77 +18,69 @@
     </style>
 </head>
 <body class="flex flex-col w-full h-full bg-slate-100">
-    <!-- 顶部栏 -->
     <header class="bg-primary text-white px-8 py-4 flex justify-between items-center shadow">
         <div class="text-2xl font-bold"><i class="fa fa-bullhorn mr-2"></i>班级通知公告</div>
         <div class="text-xl" id="nowTime"></div>
     </header>
 
-    <!-- 消息列表区域 全部展示 -->
     <main class="flex-1 p-6 overflow-y-auto">
         <div id="listBox" class="w-full max-w-6xl mx-auto space-y-4"></div>
     </main>
 
-    <!-- 底部状态栏 + 版权 -->
     <footer class="bg-white px-8 py-3 shadow-inner">
         <div class="flex justify-between items-center">
-            <span class="text-green-600"><i class="fa fa-cloud mr-1"></i> 云端实时同步 | 最新通知自动刷新</span>
+            <span class="text-green-600">实时同步中</span>
             <span class="text-gray-500 text-sm">© 2025 北二外成都附中 版权所有</span>
         </div>
     </footer>
 
 <script>
-const API = "https://jsonblob.com/api/jsonBlob/1165509423199248384";
+const STORAGE_KEY = 'class_msg_data';
 
-async function getCloudData(){
-    let res = await fetch(API);
-    return await res.json();
+// 读取消息
+function getMsg() {
+    const data = localStorage.getItem(STORAGE_KEY);
+    return data ? JSON.parse(data) : [];
 }
 
-async function renderList(){
-    let msgArr = await getCloudData();
+// 渲染列表
+function render() {
+    const msgArr = getMsg();
     const box = document.getElementById("listBox");
 
-    if(msgArr.length === 0){
-        box.innerHTML = `
-        <div class="bg-white rounded-lg p-10 text-center text-gray-400 text-2xl shadow">
-            暂无班级通知，等待老师发布
-        </div>`;
+    if (msgArr.length === 0) {
+        box.innerHTML = `<div class="bg-white rounded-lg p-10 text-center text-gray-400 text-2xl shadow">暂无通知，等待老师发布</div>`;
         return;
     }
 
     let html = "";
-    msgArr.forEach(item=>{
+    msgArr.forEach(item => {
         let headColor = "bg-primary";
-        if(item.type === "urgent") headColor = "bg-urgent";
-        if(item.type === "important") headColor = "bg-important";
-
-        let pinBadge = item.pinned 
-            ? '<span class="bg-yellow-400 text-black text-sm px-3 py-1 rounded ml-3">置顶</span>' 
-            : '';
+        if (item.type === "urgent") headColor = "bg-urgent";
+        if (item.type === "important") headColor = "bg-important";
+        
+        const pinBadge = item.pinned ? '<span class="bg-yellow-400 text-black text-sm px-3 rounded ml-3">置顶</span>' : '';
 
         html += `
         <div class="bg-white rounded-lg shadow-lg overflow-hidden">
             <div class="${headColor} text-white px-6 py-3 flex justify-between items-center">
                 <div class="text-xl font-bold">${item.title} ${pinBadge}</div>
-                <div class="text-sm opacity-90">${item.time}</div>
+                <div class="text-sm">${item.time}</div>
             </div>
-            <div class="px-6 py-5 text-lg whitespace-pre-wrap leading-relaxed text-gray-800">
-                ${item.content}
-            </div>
+            <div class="px-6 py-5 text-lg whitespace-pre-wrap">${item.content}</div>
         </div>`;
     });
-
     box.innerHTML = html;
 }
 
-setInterval(()=>{
-    const t = new Date().toLocaleString('zh-CN');
-    document.getElementById("nowTime").innerText = t;
-},1000);
+// 实时时间
+setInterval(() => {
+    document.getElementById("nowTime").innerText = new Date().toLocaleString('zh-CN');
+}, 1000);
 
-setInterval(renderList, 3000);
-renderList();
+// 2秒同步一次
+setInterval(render, 2000);
+render();
 </script>
 </body>
 </html>
