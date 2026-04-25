@@ -30,54 +30,49 @@
 </footer>
 
 <script>
-const API_URL = "https://api.jsonbin.io/v3/b/67a6d7a4acd7837645a12345";
+const API = "https://api.npoint.io/3e6024d5ac1732c44444";
 
 // 获取云端消息
 async function getMsg() {
-  try {
-    const res = await fetch(API_URL);
-    const data = await res.json();
-    return data.record || [];
-  } catch (e) {
-    return [];
-  }
+    let res = await fetch(API);
+    return await res.json();
 }
 
 // 渲染列表
 async function render() {
-  const list = await getMsg();
-  const box = document.getElementById("box");
+    let list = await getMsg();
+    const box = document.getElementById("box");
 
-  if (list.length === 0) {
-    box.innerHTML = `<div class="text-center text-gray-400 text-2xl p-10 bg-white rounded">暂无通知，等待老师发布</div>`;
-    return;
-  }
+    if (list.length === 0) {
+        box.innerHTML = `<div class="text-center text-gray-400 text-2xl p-10 bg-white rounded">暂无通知，等待老师发布</div>`;
+        return;
+    }
 
-  let html = "";
-  list.forEach(item => {
-    let color = "bg-primary";
-    if (item.type === "urgent") color = "bg-urgent";
-    if (item.type === "important") color = "bg-important";
-    const pin = item.pinned ? '<span class="bg-yellow-400 text-black px-2 rounded text-sm ml-2">置顶</span>' : '';
+    let html = "";
+    list.forEach(item => {
+        let color = "bg-primary";
+        if (item.type === "urgent") color = "bg-urgent";
+        if (item.type === "important") color = "bg-important";
+        const pin = item.pinned ? '<span class="bg-yellow-400 text-black px-2 rounded text-sm ml-2">置顶</span>' : '';
 
-    html += `
-    <div class="bg-white rounded-lg shadow-lg overflow-hidden">
-      <div class="${color} text-white p-4 flex justify-between">
-        <div class="text-xl font-bold">${item.title} ${pin}</div>
-        <div class="text-sm">${item.time}</div>
-      </div>
-      <div class="p-6 text-lg whitespace-pre-wrap">${item.content}</div>
-    </div>`;
-  });
-  box.innerHTML = html;
+        html += `
+        <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+            <div class="${color} text-white p-4 flex justify-between">
+                <div class="text-xl font-bold">${item.title} ${pin}</div>
+                <div class="text-sm">${item.time}</div>
+            </div>
+            <div class="p-6 text-lg whitespace-pre-wrap">${item.content}</div>
+        </div>`;
+    });
+    box.innerHTML = html;
 }
 
 // 实时时间
 setInterval(() => {
-  document.getElementById("time").innerText = new Date().toLocaleString('zh-CN');
+    document.getElementById("time").innerText = new Date().toLocaleString('zh-CN');
 }, 1000);
 
-// 3秒同步一次（全设备通用）
+// 3秒同步一次，跨设备通用
 setInterval(render, 3000);
 render();
 </script>
