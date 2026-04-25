@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>教师发布端-云端同步</title>
+    <title>教师发布端</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css">
-    <script>tailwind.config={theme:{extend:{colors:{primary:'#1E88E5'}}}}</script>
+    <script src="https://cdn.jsdelivr.net/npm/socket.io-client@4.8.1/dist/socket.io.min.js"></script>
 </head>
 <body class="bg-gray-100 p-4 pb-8 flex flex-col min-h-screen">
 <div class="max-w-lg mx-auto flex-1">
@@ -24,98 +24,74 @@
                 <input type="checkbox" id="pinned"> 置顶
             </label>
         </div>
-        <button onclick="pushMsg()" class="w-full bg-primary text-white py-3 rounded-lg font-bold">
-            发布并同步至全班大屏
+        <button onclick="sendMsg()" class="w-full bg-blue-600 text-white py-3 rounded-lg font-bold">
+            发布（全设备同步）
         </button>
     </div>
-
     <div class="mt-4 flex justify-between items-center">
-        <h3 class="font-bold">全部通知</h3>
-        <button onclick="clearAll()" class="text-red-500 text-sm">一键清空</button>
+        <h3 class="font-bold">通知列表</h3>
+        <button onclick="clearMsg()" class="text-red-500 text-sm">一键清空</button>
     </div>
     <div id="list" class="mt-2 space-y-2"></div>
 </div>
 <div class="text-center text-gray-500 text-sm mt-6">© 2025 北二外成都附中 版权所有</div>
 
 <script>
-// 稳定无跨域接口（修复发送失败）
-const STORAGE_KEY = 'class_msg_data';
+const socket = io('wss://echo.websocket.events');
+let msgList = [];
 
-// 读取数据
-function getData() {
-    const data = localStorage.getItem(STORAGE_KEY);
-    return data ? JSON.parse(data) : [];
-}
-
-// 保存数据
-function saveData(data) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-}
-
-// 发布消息
-function pushMsg() {
-    const title = document.getElementById("title").value.trim();
-    const content = document.getElementById("content").value.trim();
-    const type = document.getElementById("type").value;
-    const pinned = document.getElementById("pinned").checked;
+// 发送消息
+function sendMsg() {
+    const title = document.getElementById('title').value.trim();
+    const content = document.getElementById('content').value.trim();
+    const type = document.getElementById('type').value;
+    const pinned = document.getElementById('pinned').checked;
     
-    if (!title || !content) {
-        alert("请填写标题和内容！");
-        return;
-    }
-
-    const list = getData();
-    list.unshift({
-        id: Date.now(),
-        title, content, type, pinned,
+    if (!title || !content) return alert('请填写完整内容');
+    
+    const msg = {
+        id: Date.now(), title, content, type, pinned,
         time: new Date().toLocaleString('zh-CN')
-    });
+    };
     
-    saveData(list);
-    alert("发布成功！大屏已同步！");
-    
-    // 清空输入框
-    document.getElementById("title").value = "";
-    document.getElementById("content").value = "";
-    renderList();
+    socket.emit('msg', msg);
+    alert('发布成功！全设备已同步');
+    document.getElementById('title').value = '';
+    document.getElementById('content').value = '';
 }
+
+// 接收同步
+socket.on('msg', (msg) => {
+    msgList.unshift(msg);
+    render();
+});
 
 // 渲染列表
-function renderList() {
-    const list = getData();
-    let html = "";
-    list.forEach(item => {
+function render() {
+    let html = '';
+    msgList.forEach(item => {
         html += `
-        <div class="bg-white p-3 rounded shadow flex justify-between items-center">
-            <div>
-                <div class="font-semibold">${item.title}</div>
-                <div class="text-xs text-gray-500">${item.time}</div>
-            </div>
-            <button onclick="delMsg(${item.id})" class="text-red-400 px-2">删除</button>
+        <div class="bg-white p-3 rounded shadow">
+            <div class="font-bold">${item.title}</div>
+            <div class="text-xs text-gray-500">${item.time}</div>
         </div>`;
     });
-    document.getElementById("list").innerHTML = html;
+    document.getElementById('list').innerHTML = html;
 }
 
-// 删除单条
-function delMsg(id) {
-    let list = getData();
-    list = list.filter(x => x.id !== id);
-    saveData(list);
-    renderList();
-}
-
-// 清空全部
-function clearAll() {
-    if (confirm("确定清空所有通知？")) {
-        saveData([]);
-        renderList();
+// 清空
+function clearMsg() {
+    if (confirm('清空所有通知？')) {
+        msgList = [];
+        socket.emit('clear', true);
+        render();
     }
 }
 
-// 初始化
-renderList();
-setInterval(renderList, 2000);
+socket.on('clear', () => {
+    msgList = [];
+    render();
+});
 </script>
 </body>
 </html>
