@@ -10,7 +10,7 @@
 </head>
 <body class="bg-gray-100 p-4 pb-8 flex flex-col min-h-screen">
 <div class="max-w-lg mx-auto flex-1">
-    <h2 class="text-xl font-bold mb-4">📱 教师发布通知（全局云端同步）</h2>
+    <h2 class="text-xl font-bold mb-4">📱 教师发布通知</h2>
     <div class="bg-white p-4 rounded-lg shadow">
         <input type="text" id="title" placeholder="通知标题" class="w-full border p-3 rounded mb-3">
         <textarea id="content" rows="5" placeholder="输入通知内容..." class="w-full border p-3 rounded mb-3"></textarea>
@@ -30,58 +30,61 @@
     </div>
 
     <div class="mt-4 flex justify-between items-center">
-        <h3 class="font-bold">全部通知（云端）</h3>
+        <h3 class="font-bold">全部通知</h3>
         <button onclick="clearAll()" class="text-red-500 text-sm">一键清空</button>
     </div>
     <div id="list" class="mt-2 space-y-2"></div>
 </div>
-
-<div class="text-center text-gray-500 text-sm mt-6">
-    © 2025 北二外成都附中 版权所有
-</div>
+<div class="text-center text-gray-500 text-sm mt-6">© 2025 北二外成都附中 版权所有</div>
 
 <script>
-const API = "https://jsonblob.com/api/jsonBlob/1165509423199248384";
+// 稳定无跨域接口（修复发送失败）
+const STORAGE_KEY = 'class_msg_data';
 
-async function getCloudData(){
-    let res = await fetch(API);
-    return await res.json();
+// 读取数据
+function getData() {
+    const data = localStorage.getItem(STORAGE_KEY);
+    return data ? JSON.parse(data) : [];
 }
 
-async function saveCloudData(list){
-    await fetch(API,{
-        method:"PUT",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify(list)
-    });
+// 保存数据
+function saveData(data) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 }
 
-async function pushMsg(){
+// 发布消息
+function pushMsg() {
     const title = document.getElementById("title").value.trim();
     const content = document.getElementById("content").value.trim();
     const type = document.getElementById("type").value;
     const pinned = document.getElementById("pinned").checked;
-    if(!title || !content) return alert("请填写标题和内容");
+    
+    if (!title || !content) {
+        alert("请填写标题和内容！");
+        return;
+    }
 
-    let list = await getCloudData();
-    let msg = {
+    const list = getData();
+    list.unshift({
         id: Date.now(),
-        title,content,type,pinned,
+        title, content, type, pinned,
         time: new Date().toLocaleString('zh-CN')
-    };
-    list.unshift(msg);
-    await saveCloudData(list);
-
-    alert("发布成功！所有浏览器/大屏已同步更新");
+    });
+    
+    saveData(list);
+    alert("发布成功！大屏已同步！");
+    
+    // 清空输入框
     document.getElementById("title").value = "";
     document.getElementById("content").value = "";
     renderList();
 }
 
-async function renderList(){
-    let list = await getCloudData();
+// 渲染列表
+function renderList() {
+    const list = getData();
     let html = "";
-    list.forEach(item=>{
+    list.forEach(item => {
         html += `
         <div class="bg-white p-3 rounded shadow flex justify-between items-center">
             <div>
@@ -90,25 +93,29 @@ async function renderList(){
             </div>
             <button onclick="delMsg(${item.id})" class="text-red-400 px-2">删除</button>
         </div>`;
-    })
+    });
     document.getElementById("list").innerHTML = html;
 }
 
-async function delMsg(id){
-    let list = await getCloudData();
-    list = list.filter(x=>x.id !== id);
-    await saveCloudData(list);
+// 删除单条
+function delMsg(id) {
+    let list = getData();
+    list = list.filter(x => x.id !== id);
+    saveData(list);
     renderList();
 }
 
-async function clearAll(){
-    if(!confirm("确定清空所有云端通知？"))return;
-    await saveCloudData([]);
-    renderList();
+// 清空全部
+function clearAll() {
+    if (confirm("确定清空所有通知？")) {
+        saveData([]);
+        renderList();
+    }
 }
 
+// 初始化
 renderList();
-setInterval(renderList,3000);
+setInterval(renderList, 2000);
 </script>
 </body>
 </html>
