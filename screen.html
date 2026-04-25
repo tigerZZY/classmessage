@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>班级大屏通知</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css">
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <style>
+        body{overflow:hidden;}
+        @keyframes count{from{width:100%}to{width:0%}}
+        .bar{animation:count 12s linear forwards;}
+    </style>
+    <script>
+        tailwind.config={theme:{extend:{colors:{primary:'#1E88E5',red:'#dc2626',orange:'#f97316'}}}}
+    </script>
+</head>
+<body class="w-full h-screen">
+<div class="h-full flex flex-col bg-gray-100">
+    <div class="bg-primary text-white p-4 flex justify-between">
+        <div><i class="fa fa-volume-up"></i> 班级实时通知</div>
+        <div id="nowTime"></div>
+    </div>
+
+    <div class="flex-1 flex items-center justify-center p-6">
+        <div id="msgBox" class="w-full max-w-4xl"></div>
+    </div>
+
+    <div class="p-3 bg-white flex justify-between items-center">
+        <span>实时同步中</span>
+        <div class="w-48 h-1 bg-gray-200 rounded overflow-hidden">
+            <div id="progress" class="h-full bg-primary bar"></div>
+        </div>
+        <span id="pageNum">0/0</span>
+    </div>
+</div>
+
+<script>
+// 同步云端数据库
+const firebaseConfig = {
+  apiKey: "AIzaSyB9s2H2X9f2H0Z8X7xQZ8X9xQZ8X9xQZ8X9",
+  databaseURL: "https://class-notice-db-default-rtdb.firebaseio.com",
+  projectId: "class-notice-db"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const msgRef = db.ref("classMsg");
+
+let msgList = [],now=0;
+
+// 实时监听新消息，自动刷新
+msgRef.on("value",res=>{
+    let data = res.val()||{};
+    msgList = Object.values(data).reverse();
+    now=0;
+    showMsg();
+})
+
+// 渲染消息
+function showMsg(){
+    if(msgList.length===0){
+        document.getElementById("msgBox").innerHTML=`<div class="text-center text-gray-400 text-2xl">暂无通知</div>`;
+        return;
+    }
+    let item = msgList[now];
+    let color = item.type=="urgent"?"bg-red-600":item.type=="important"?"bg-orange-500":"bg-primary";
+    let pin = item.pinned?'<span class="bg-yellow-500 text-white px-2 rounded text-xs">置顶</span>':'';
+
+    document.getElementById("msgBox").innerHTML = `
+    <div class="rounded-xl shadow-lg overflow-hidden">
+        <div class="${color} p-4 text-white flex justify-between items-center">
+            <div class="text-xl font-bold">${item.title} ${pin}</div>
+        </div>
+        <div class="bg-white p-6 text-lg whitespace-pre-wrap">${item.content}</div>
+    </div>`;
+
+    document.getElementById("pageNum").innerText = `${now+1}/${msgList.length}`;
+    // 重置轮播进度
+    let p = document.getElementById("progress");
+    p.style.animation="none";p.offsetHeight;p.style.animation="count 12s linear forwards";
+    // 自动下一条
+    setTimeout(()=>{
+        now=(now+1)%msgList.length;
+        showMsg();
+    },12000)
+}
+
+// 时间更新
+setInterval(()=>{
+    let t = new Date();
+    document.getElementById("nowTime").innerText = t.toLocaleString('zh-CN');
+},1000);
+
+// 页面加载初始化
+showMsg();
+</script>
+</body>
+</html>
