@@ -3,98 +3,107 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>班级大屏通知</title>
+    <title>班级大屏实时通知</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css">
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
     <style>
-        body{overflow:hidden;}
-        @keyframes count{from{width:100%}to{width:0%}}
-        .bar{animation:count 12s linear forwards;}
+        body{overflow:hidden;height:100vh;}
+        .progress{animation:slide 15s linear forwards;}
+        @keyframes slide{from{width:100%}to{width:0%;}}
     </style>
-    <script>
-        tailwind.config={theme:{extend:{colors:{primary:'#1E88E5',red:'#dc2626',orange:'#f97316'}}}}
-    </script>
+    <script>tailwind.config={theme:{extend:{colors:{primary:'#1E88E5',urgent:'#e53e3e',important:'#f97316'}}}}</script>
 </head>
-<body class="w-full h-screen">
-<div class="h-full flex flex-col bg-gray-100">
-    <div class="bg-primary text-white p-4 flex justify-between">
-        <div><i class="fa fa-volume-up"></i> 班级实时通知</div>
+<body class="flex flex-col w-full h-full bg-slate-100">
+    <!-- 顶部栏 -->
+    <header class="bg-primary text-white px-6 py-3 flex justify-between items-center">
+        <div class="text-xl font-bold">📢 班级课间通知大屏</div>
         <div id="nowTime"></div>
-    </div>
+    </header>
 
-    <div class="flex-1 flex items-center justify-center p-6">
-        <div id="msgBox" class="w-full max-w-4xl"></div>
-    </div>
+    <!-- 消息主体 -->
+    <main class="flex-1 flex items-center justify-center p-6">
+        <div id="showBox" class="w-full max-w-5xl"></div>
+    </main>
 
-    <div class="p-3 bg-white flex justify-between items-center">
-        <span>实时同步中</span>
-        <div class="w-48 h-1 bg-gray-200 rounded overflow-hidden">
-            <div id="progress" class="h-full bg-primary bar"></div>
+    <!-- 底部进度 -->
+    <footer class="bg-white px-6 py-3">
+        <div class="flex items-center justify-between">
+            <span class="text-gray-600">实时监听中...</span>
+            <div class="w-64 h-2 bg-gray-200 rounded overflow-hidden">
+                <div id="bar" class="h-full bg-primary progress"></div>
+            </div>
+            <span id="num">0/0</span>
         </div>
-        <span id="pageNum">0/0</span>
-    </div>
-</div>
+    </footer>
 
 <script>
-// 同步云端数据库
-const firebaseConfig = {
-  apiKey: "AIzaSyB9s2H2X9f2H0Z8X7xQZ8X9xQZ8X9xQZ8X9",
-  databaseURL: "https://class-notice-db-default-rtdb.firebaseio.com",
-  projectId: "class-notice-db"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-const msgRef = db.ref("classMsg");
+const KEY = "classNoticeData";
+let msgArr = [];
+let curr = 0;
 
-let msgList = [],now=0;
-
-// 实时监听新消息，自动刷新
-msgRef.on("value",res=>{
-    let data = res.val()||{};
-    msgList = Object.values(data).reverse();
-    now=0;
-    showMsg();
-})
-
-// 渲染消息
-function showMsg(){
-    if(msgList.length===0){
-        document.getElementById("msgBox").innerHTML=`<div class="text-center text-gray-400 text-2xl">暂无通知</div>`;
-        return;
-    }
-    let item = msgList[now];
-    let color = item.type=="urgent"?"bg-red-600":item.type=="important"?"bg-orange-500":"bg-primary";
-    let pin = item.pinned?'<span class="bg-yellow-500 text-white px-2 rounded text-xs">置顶</span>':'';
-
-    document.getElementById("msgBox").innerHTML = `
-    <div class="rounded-xl shadow-lg overflow-hidden">
-        <div class="${color} p-4 text-white flex justify-between items-center">
-            <div class="text-xl font-bold">${item.title} ${pin}</div>
-        </div>
-        <div class="bg-white p-6 text-lg whitespace-pre-wrap">${item.content}</div>
-    </div>`;
-
-    document.getElementById("pageNum").innerText = `${now+1}/${msgList.length}`;
-    // 重置轮播进度
-    let p = document.getElementById("progress");
-    p.style.animation="none";p.offsetHeight;p.style.animation="count 12s linear forwards";
-    // 自动下一条
-    setTimeout(()=>{
-        now=(now+1)%msgList.length;
-        showMsg();
-    },12000)
+// 读取消息
+function getMsg(){
+    const data = localStorage.getItem(KEY);
+    return data ? JSON.parse(data) : [];
 }
 
-// 时间更新
+// 渲染当前消息
+function render(){
+    msgArr = getMsg();
+    if(msgArr.length === 0){
+        document.getElementById("showBox").innerHTML = `
+        <div class="text-center text-gray-400 text-3xl">
+            暂无通知，等待老师发布...
+        </div>`;
+        document.getElementById("num").innerText = "0/0";
+        return;
+    }
+
+    const item = msgArr[curr];
+    document.getElementById("num").innerText = `${curr+1}/${msgArr.length}`;
+
+    let color = "bg-primary";
+    if(item.type === "urgent") color = "bg-urgent";
+    if(item.type === "important") color = "bg-important";
+    let pinText = item.pinned ? '<span class="bg-yellow-400 text-black px-2 rounded ml-2 text-sm">置顶</span>' : "";
+
+    document.getElementById("showBox").innerHTML = `
+    <div class="rounded-xl shadow-lg overflow-hidden">
+        <div class="${color} text-white p-5 text-2xl font-bold">
+            ${item.title} ${pinText}
+            <div class="text-sm font-normal opacity-80 mt-1">${item.time}</div>
+        </div>
+        <div class="bg-white p-8 text-xl whitespace-pre-wrap leading-loose">
+            ${item.content}
+        </div>
+    </div>`;
+
+    // 重置进度条
+    const bar = document.getElementById("bar");
+    bar.style.animation = "none";
+    bar.offsetWidth;
+    bar.style.animation = "slide 15s linear forwards";
+}
+
+// 自动轮播
+function autoNext(){
+    curr = (curr + 1) % msgArr.length;
+    render();
+}
+
+// 每秒更新时间
 setInterval(()=>{
-    let t = new Date();
-    document.getElementById("nowTime").innerText = t.toLocaleString('zh-CN');
+    const t = new Date().toLocaleString('zh-CN');
+    document.getElementById("nowTime").innerText = t;
 },1000);
 
-// 页面加载初始化
-showMsg();
+// 实时监听：2秒拉取一次新消息（完美同步）
+setInterval(render, 2000);
+// 15秒自动下一条
+setInterval(autoNext, 15000);
+
+// 初始化
+render();
 </script>
 </body>
 </html>
